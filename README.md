@@ -525,10 +525,10 @@ La siguiente etapa del proyecto deberá utilizar los datos preparados para const
 
 ### Integrantes
 
-- Nombre Apellido
-- Nombre Apellido
-- Nombre Apellido
-- Nombre Apellido
+- **Sebastián Aird**
+- **Bastián Roman**
+- **Vicente Contreras**
+- **Ignacio Gómez**
 
 ---
 

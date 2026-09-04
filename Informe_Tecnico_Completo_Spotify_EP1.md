@@ -91,12 +91,3 @@ La distribución desigual entre géneros, la exposición previa, promoción, con
 ## 23. Conclusiones y próximas etapas
 
 El dataset permite una exploración sólida, pero las variables aisladas no deben interpretarse como explicaciones causales. La siguiente fase debe construir un pipeline reproducible, separar train/test, comparar modelos de regresión con las métricas definidas y revisar desempeño por género.
-
-## 24. Checklist de cumplimiento
-
-| Indicador | Evidencia |
-|---|---|
-| IE1 | Fuente, herramientas, justificación y limitación de captura documentadas. |
-| IE2 | Copia, índice artificial, faltantes, tipos, validaciones y selección preliminar implementadas. |
-| IE3 | Perfil, calidad, descriptivos, outliers, gráficos, correlaciones y análisis categórico implementados. |
-| IE4 | Sesgos potenciales, ética, privacidad, limitaciones y uso responsable documentados. |
