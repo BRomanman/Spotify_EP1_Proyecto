@@ -106,7 +106,8 @@ El proyecto fue desarrollado utilizando:
 - **Matplotlib** - visualización.
 - **SciPy** - análisis estadístico y pruebas de asociación.
 - **Jupyter Notebook**
-- **Google Colab** como alternativa de ejecución.
+- **Google Colab** como entorno de trabajo colaborativo: permite edición y ejecución simultánea entre los 4 integrantes sin depender de que cada uno configure un entorno Python idéntico, relevante dado el tiempo acotado de la evaluación (5 horas en sala de proyectos).
+- **Google Drive** para compartir el dataset y los entregables, asegurando que el equipo trabaje siempre sobre la misma versión de los archivos.
 
 ---
 
@@ -118,7 +119,8 @@ Se recomienda mantener la siguiente estructura:
 proyecto-spotify/
 │
 ├── data/
-│   └── dataset.csv
+│   ├── dataset.csv
+│   └── dataset_song_level_multihot.csv   # generado en la sección 10.1 (reestructuración por canción)
 │
 ├── notebooks/
 │   └── EP1_Caso_C_Spotify_Informe.ipynb
@@ -272,6 +274,8 @@ Un `track_id` repetido no implica necesariamente que las filas sean idénticas.
 
 Por este motivo, los registros con identificadores repetidos **no se eliminan automáticamente**.
 
+> **Nota:** el chequeo de duplicados exactos da 0 sobre el dataset original porque la columna `Unnamed: 0` es un índice único por fila. Al eliminarla en la preparación, el mismo chequeo sobre `df_clean` pasa de 0 a **450 duplicados exactos**, documentados dinámicamente en la comparación antes/después y tampoco eliminados automáticamente.
+
 ### Índice artificial
 
 La columna `Unnamed: 0` solo se elimina cuando se comprueba que corresponde exactamente a un índice secuencial artificial.
@@ -365,6 +369,32 @@ En la futura etapa de modelamiento, la separación entre entrenamiento y prueba 
 
 Esto permite evitar que información del conjunto de prueba influya en el entrenamiento.
 
+### Riesgo adicional: fuga de datos por la estructura canción × género
+
+16,299 canciones aparecen en más de una fila (una por género). Si el `train_test_split` se hace de forma aleatoria por fila, la misma canción puede quedar en train y en test a la vez, ya que sus variables de audio son idénticas en todas sus apariciones. El split debe hacerse **agrupado por `track_id`** (por ejemplo con `GroupShuffleSplit`), o usar la versión del dataset a nivel canción descrita abajo, que evita este riesgo de forma estructural.
+
+---
+
+## 🔀 10.1 Reformulaciones del problema y modelo sugerido
+
+Antes de cerrar la etapa de comprensión de datos, se documentan tres reformulaciones adicionales del problema de predicción — evaluadas como parte del análisis, no como una decisión ya tomada. La regresión sobre `popularity` sigue siendo el enfoque principal.
+
+### Clasificación binaria: detección de "hits"
+
+Se define `is_hit` como `popularity >= 80`. Este umbral corresponde exactamente al **percentil 99** del dataset, por lo que no es un número elegido arbitrariamente. Resulta en una clase positiva minoritaria (1,201 canciones, 1.05%): *accuracy* no es una métrica adecuada para evaluarlo — se recomienda precision, recall, F1 o AUC-PR, junto con `class_weight` o remuestreo.
+
+### Clasificación multiclase: categorías de popularidad
+
+Se evaluaron cortes fijos ("redondos") frente a cortes por terciles de los datos (22 y 45). Se optó por terciles porque generan 3 categorías balanceadas (~33% cada una); los cortes redondos, dada la asimetría de `popularity`, producen clases muy desiguales. Si se usan para entrenar un modelo, deben recalcularse solo con el conjunto de entrenamiento.
+
+### Reestructuración a nivel canción (género multi-hot)
+
+Se evalúa colapsar el dataset de 114,000 filas (canción × género) a **89,741 filas** (una por canción), representando los géneros como columnas binarias — codificación multi-hot/multi-label, no one-hot clásico, ya que una canción puede tener hasta 9 géneros. Se valida que las variables de audio son constantes por canción, y se detecta que 720 canciones tienen `popularity` distinto según el género con que fueron indexadas; se resuelve promediando, decisión documentada explícitamente.
+
+### Modelo sugerido
+
+**Ensambles basados en árboles** (Random Forest como línea base, Gradient Boosting — XGBoost o LightGBM — como modelo principal), porque: las asociaciones lineales individuales son débiles (máximo |r| = 0.095, sugiriendo relaciones no lineales o de interacción); `track_genre` es de alta cardinalidad y es la variable más asociada a `popularity`; no se eliminaron outliers deliberadamente y los árboles son robustos a ellos; se requiere interpretabilidad (`feature_importances_`, SHAP) para el seguimiento ético; y el desbalance del target "hit" se maneja nativamente con `class_weight`/`scale_pos_weight`. Una regresión lineal regularizada (Ridge/Lasso) puede incluirse como línea base adicional.
+
 ---
 
 ## 🔄 11. Metodología CRISP-DM
@@ -381,7 +411,7 @@ Exploración inicial, estructura y calidad de los datos.
 Limpieza, transformación y preparación preliminar.
 
 ### 4. Modeling
-**Pendiente para la siguiente etapa.**
+**Pendiente para la siguiente etapa.** Modelo sugerido: ensambles de árboles (ver sección 10.1).
 
 ### 5. Evaluation
 **Pendiente para la siguiente etapa.**
@@ -539,7 +569,8 @@ El proyecto considera:
 ```text
 ├── README.md
 ├── data/
-│   └── dataset.csv
+│   ├── dataset.csv
+│   └── dataset_song_level_multihot.csv
 └── notebooks/
     └── EP1_Caso_C_Spotify_Informe.ipynb
 ```
