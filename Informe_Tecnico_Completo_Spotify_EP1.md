@@ -14,7 +14,9 @@ Para modelamiento se utilizarán MAE, RMSE y R²; no se inventan valores porque 
 
 ## 4. Fuentes de datos y herramientas
 
-La fuente principal es `data/dataset.csv` del Caso C Spotify Tracks: 114,000 registros y 21 variables. Incluye identificadores, metadatos, `popularity` y atributos musicales. Se usan Python, Pandas, NumPy, Matplotlib, SciPy y Jupyter Notebook/Google Colab. Colab/Jupyter es un entorno de ejecución, no una fuente de datos. El material disponible no permite determinar con certeza el método original de captura del dataset.
+La fuente principal es `data/dataset.csv` del Caso C Spotify Tracks: 114,000 registros y 21 variables. Incluye identificadores, metadatos, `popularity` y atributos musicales. Se usan Python, Pandas, NumPy, Matplotlib, SciPy y Jupyter Notebook/Google Colab para el análisis. Colab/Jupyter es un entorno de ejecución, no una fuente de datos. El material disponible no permite determinar con certeza el método original de captura del dataset.
+
+Como entorno de trabajo colaborativo se utiliza Google Colab, que permite edición y ejecución simultánea entre los 4 integrantes del equipo sin depender de que cada uno configure un entorno Python idéntico, relevante dado el tiempo acotado de la evaluación (5 horas en sala de proyectos). El dataset y los entregables se comparten mediante Google Drive, asegurando que el equipo trabaje siempre sobre la misma versión de los archivos.
 
 ## 5. Importación de librerías
 
@@ -34,7 +36,9 @@ El análisis dinámico identifica: artists: 1, album_name: 1, track_name: 1. Los
 
 ## 9. Duplicados
 
-Se detectaron 0 duplicados exactos (0.000%) y 24,259 registros adicionales con `track_id` repetido. Ambos conceptos se separan: un identificador repetido no implica necesariamente una fila idéntica ni autoriza eliminación automática.
+Se detectaron 0 duplicados exactos (0.000%) sobre el dataset original y 24,259 registros adicionales con `track_id` repetido (89,741 `track_id` únicos de 114,000 filas). Ambos conceptos se separan: un identificador repetido no implica necesariamente una fila idéntica ni autoriza eliminación automática.
+
+El resultado de 0 duplicados exactos se explica porque la columna `Unnamed: 0` actúa como índice único por fila. Al eliminarla en la preparación de datos (sección 18), el mismo chequeo (`duplicated()`) sobre `df_clean` pasa de 0 a **450 duplicados exactos** — es decir, 450 filas que sí repiten todo su contenido una vez removido el índice artificial. Este cambio queda documentado dinámicamente en la comparación antes/después (sección 19) y no se elimina automáticamente, siguiendo el mismo criterio conservador aplicado al resto del dataset.
 
 ## 10. Tipos de datos y cardinalidad
 
@@ -80,9 +84,29 @@ El notebook entrega un nuevo perfil del conjunto preparado con tipo, faltantes y
 
 `popularity` es la variable objetivo. `track_id` se excluye por ser identificador; artists, album_name y track_name se reservan como metadatos de alta cardinalidad. Las variables musicales, explicit y track_genre son candidatas. La futura separación train/test debe ocurrir antes de ajustar imputadores, escaladores o codificadores.
 
+## 20.1 Reformulaciones del problema de predicción
+
+Definir `popularity` como target continuo (regresión) es el enfoque principal del proyecto, pero no la única forma razonable de plantearlo. Antes de cerrar la comprensión de datos, se documentan tres reformulaciones adicionales evaluadas como parte del análisis, no como una decisión ya tomada:
+
+**Clasificación binaria (detección de "hits").** Se define `is_hit` como `popularity >= 80`, umbral que corresponde exactamente al percentil 99 del dataset (no es un número redondo elegido por conveniencia). Resulta en una clase positiva minoritaria (1,201 canciones, 1.05%), por lo que *accuracy* no es una métrica adecuada: se recomienda precision, recall, F1 o AUC-PR, junto con `class_weight` o remuestreo en la etapa de modelamiento.
+
+**Clasificación multiclase (categorías de popularidad).** Se evaluaron cortes fijos ("redondos") versus cortes por terciles de los datos. Se optó por terciles (cortes en 22 y 45, no en 33/66) porque generan 3 categorías balanceadas (~33% cada una), mientras que cortes redondos producen clases muy desiguales dada la asimetría de `popularity`. Si estos cortes se usan para entrenar un modelo, deben recalcularse únicamente con el conjunto de entrenamiento para evitar fuga de información.
+
+**Reestructuración a nivel canción (género multi-hot).** Se evalúa colapsar el dataset de 114,000 filas (canción × género) a 89,741 filas (una por canción única), representando los géneros como columnas binarias — una codificación multi-hot/multi-label, no one-hot clásico, ya que una canción puede pertenecer a más de un género (hasta 9 en este dataset). Antes de reestructurar se valida que las variables de audio son constantes por canción (confirmado) y se detecta que 720 canciones (4.3% de las que tienen múltiples géneros) presentan `popularity` distinto según el género con que fueron indexadas; se resuelve promediando, decisión documentada explícitamente. Si se usa esta versión del dataset para modelar, los targets `is_hit` y `categoria_popularidad` deben recalcularse sobre el `popularity` ya promediado, no reutilizarse desde el dataset en formato largo.
+
+Estas tres reformulaciones no son excluyentes entre sí: quedan documentadas como opciones evaluadas en la etapa de comprensión de datos; la selección final se hará en la etapa de modelamiento según el desempeño empírico frente a los KPIs definidos.
+
+### Riesgo de fuga de datos por la estructura canción × género
+
+Si el modelamiento se realiza sobre el formato largo, un `train_test_split` aleatorio por fila puede dejar la misma canción en train y en test simultáneamente (16,299 canciones aparecen en más de una fila, con variables de audio idénticas entre sus apariciones). El split debe hacerse agrupado por `track_id` (por ejemplo con `GroupShuffleSplit`), o bien utilizarse el dataset a nivel canción de la reestructuración anterior, que evita este riesgo de forma estructural.
+
+### Modelo sugerido para la etapa de modelamiento
+
+Se recomienda un ensamble basado en árboles (Random Forest como línea base, Gradient Boosting — XGBoost o LightGBM — como modelo principal), sustentado en evidencia generada en este mismo análisis: las asociaciones lineales individuales son débiles (máximo |r| = 0.095), lo que sugiere relaciones no lineales o de interacción que los árboles capturan sin especificación manual; `track_genre` es de alta cardinalidad y es la variable más asociada a `popularity`; no se eliminaron outliers deliberadamente, y los árboles son robustos a ellos por construcción; se requiere interpretabilidad (`feature_importances_`, SHAP) para el seguimiento ético de la sección 22; y el desbalance del target "hit" se maneja de forma nativa con `class_weight`/`scale_pos_weight`. Una regresión lineal regularizada (Ridge/Lasso) puede incluirse como línea base adicional de referencia.
+
 ## 21. Metodología CRISP DM
 
-Business Understanding, Data Understanding y Data Preparation están cubiertas. Modeling y Evaluation quedan pendientes y deberán evaluar MAE, RMSE y R² sobre datos de prueba. Deployment está fuera del alcance de la evaluación.
+Business Understanding, Data Understanding y Data Preparation están cubiertas. Modeling y Evaluation quedan pendientes: se sugiere partir con un ensamble de árboles (ver sección 20.1) y evaluar MAE, RMSE y R² sobre datos de prueba (o F1/AUC-PR si se adopta alguna de las reformulaciones de clasificación). Deployment está fuera del alcance de la evaluación.
 
 ## 22. Sesgos ética y privacidad
 
@@ -90,4 +114,4 @@ La distribución desigual entre géneros, la exposición previa, promoción, con
 
 ## 23. Conclusiones y próximas etapas
 
-El dataset permite una exploración sólida, pero las variables aisladas no deben interpretarse como explicaciones causales. La siguiente fase debe construir un pipeline reproducible, separar train/test, comparar modelos de regresión con las métricas definidas y revisar desempeño por género.
+El dataset permite una exploración sólida, pero las variables aisladas no deben interpretarse como explicaciones causales. Además de la regresión sobre `popularity`, quedan documentadas dos reformulaciones de clasificación (hit binario y categorías por terciles) y una reestructuración a nivel canción (sección 20.1), como opciones a evaluar empíricamente. La siguiente fase debe construir un pipeline reproducible, separar train/test de forma agrupada por `track_id` para evitar fuga de datos, comparar modelos de regresión (sugerido: ensambles de árboles) con las métricas definidas y revisar desempeño por género.
