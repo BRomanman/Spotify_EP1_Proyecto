@@ -58,19 +58,19 @@ Se revisan duración, danceability, energy, key, loudness, mode, speechiness, ac
 
 ## 14. Correlaciones y relaciones con popularity
 
-Se calculan Pearson y Spearman sobre todos los registros, se ordenan por asociación absoluta y se visualizan en un heatmap. La asociación positiva de Pearson más alta es `loudness` (0.050) y la negativa más baja es `instrumentalness` (-0.095). Estas cifras describen asociación, no causalidad. También se incluyen gráficos para danceability, energy, loudness, acousticness, instrumentalness, valence, tempo y duration_ms.
+Se calculan Pearson y Spearman sobre todos los registros, se ordenan por asociación absoluta y se visualizan en un heatmap y en un gráfico de barras horizontales que compara ambos coeficientes lado a lado. La asociación positiva de Pearson más alta es `loudness` (0.050) y la negativa más baja es `instrumentalness` (-0.095). Estas cifras describen asociación, no causalidad. Que Spearman muestre el mismo patrón débil descarta que la debilidad de Pearson se deba solo a no linealidad. También se incluyen gráficos para danceability, energy, loudness, acousticness, instrumentalness, valence, tempo y duration_ms.
 
 ## 15. Análisis por género musical
 
-Se calcula conteo, media y mediana de popularity por género. La visualización usa solo los 15 géneros más frecuentes para evitar un gráfico ilegible; el mayor promedio observado corresponde a `pop-film`, condicionado por la cobertura del conjunto y el tamaño de cada grupo.
+Se calcula conteo, media y mediana de popularity por género. La visualización muestra los extremos (los 5 géneros con menor y los 8 con mayor popularidad promedio, de 114 géneros en total) en vez de una muestra por frecuencia, para que el gráfico refleje directamente la dispersión entre géneros; el mayor promedio observado corresponde a `pop-film` y el menor a `iranian`, con más de 55 puntos de diferencia — condicionado por la cobertura del conjunto y el tamaño de cada grupo.
 
 ## 16. Contenido explícito y popularity
 
-Se presenta una tabla de conteo, media, mediana y desviación estándar por `explicit`, junto a un boxplot. Las diferencias entre grupos se interpretan como descriptivas; no demuestran que el contenido explícito cause popularidad ni justifican exclusiones automáticas.
+Se presenta una tabla de conteo, media, mediana y desviación estándar por `explicit`, junto a un boxplot y un gráfico de barras con las medias de cada grupo (32.9 vs. 36.5). Las diferencias entre grupos se interpretan como descriptivas; no demuestran que el contenido explícito cause popularidad ni justifican exclusiones automáticas. Se calcula además Cramér's V entre `explicit` y `track_genre` (0.402) y se visualiza el top 10 de géneros por % de contenido explícito (encabezado por `comedy`, 65.6%, muy por sobre el 8.55% promedio general), lo que sugiere que la diferencia observada podría estar parcialmente confundida con el género.
 
 ## 17. Valores inválidos y valores atípicos
 
-Se validan rangos esperados para popularity, variables normalizadas entre 0 y 1, key, mode, time_signature, tempo y duration_ms. La identificación IQR y los boxplots se ejecutan en el notebook para duration_ms, loudness, tempo, speechiness, instrumentalness, liveness y popularity. Los extremos se reportan y no se eliminan automáticamente: pueden ser observaciones válidas o errores que requieren contexto.
+Se validan rangos esperados para popularity, variables normalizadas entre 0 y 1, key, mode, time_signature, tempo y duration_ms. La identificación IQR y los boxplots se ejecutan en el notebook para duration_ms, loudness, tempo, speechiness, instrumentalness, liveness y popularity, junto con un gráfico de barras que resume el % de outliers de las 7 variables en un solo vistazo. Los extremos se reportan y no se eliminan automáticamente: pueden ser observaciones válidas o errores que requieren contexto.
 
 ## 18. Preparación y transformación de datos
 
@@ -88,7 +88,7 @@ El notebook entrega un nuevo perfil del conjunto preparado con tipo, faltantes y
 
 Definir `popularity` como target continuo (regresión) es el enfoque principal del proyecto, pero no la única forma razonable de plantearlo. Antes de cerrar la comprensión de datos, se documentan tres reformulaciones adicionales evaluadas como parte del análisis, no como una decisión ya tomada:
 
-**Clasificación binaria (detección de "hits").** Se define `is_hit` como `popularity >= 80`, umbral que corresponde exactamente al percentil 99 del dataset (no es un número redondo elegido por conveniencia). Resulta en una clase positiva minoritaria (1,201 canciones, 1.05%), por lo que *accuracy* no es una métrica adecuada: se recomienda precision, recall, F1 o AUC-PR, junto con `class_weight` o remuestreo en la etapa de modelamiento.
+**Clasificación binaria (detección de "hits").** Se define `is_hit` como `popularity >= 80`, umbral que corresponde exactamente al percentil 99 del dataset (no es un número redondo elegido por conveniencia). Resulta en una clase positiva minoritaria (1,201 canciones, 1.05%), visualizada con un gráfico de torta que deja ver de inmediato lo extremo del desbalance, por lo que *accuracy* no es una métrica adecuada: se recomienda precision, recall, F1 o AUC-PR, junto con `class_weight` o remuestreo en la etapa de modelamiento.
 
 **Clasificación multiclase (categorías de popularidad).** Se evaluaron cortes fijos ("redondos") versus cortes por terciles de los datos. Se optó por terciles (cortes en 22 y 45, no en 33/66) porque generan 3 categorías balanceadas (~33% cada una), mientras que cortes redondos producen clases muy desiguales dada la asimetría de `popularity`. Si estos cortes se usan para entrenar un modelo, deben recalcularse únicamente con el conjunto de entrenamiento para evitar fuga de información.
 

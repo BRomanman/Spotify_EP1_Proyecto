@@ -230,14 +230,14 @@ Se calculan correlaciones:
 - Pearson;
 - Spearman.
 
-Las correlaciones se utilizan como medidas descriptivas de asociación y no como evidencia de causalidad.
+Ambas se visualizan en un heatmap y en un gráfico de barras que las compara lado a lado por variable. Las correlaciones se utilizan como medidas descriptivas de asociación y no como evidencia de causalidad.
 
 ### Análisis categórico
 
 Se analizan diferencias descriptivas de `popularity` según:
 
-- género musical (`track_genre`);
-- contenido explícito (`explicit`).
+- género musical (`track_genre`): se visualizan los extremos (5 géneros con menor y 8 con mayor popularidad promedio, de 114 en total);
+- contenido explícito (`explicit`): tabla, boxplot y gráfico de barras con las medias de cada grupo, más el top 10 de géneros por % de contenido explícito y el coeficiente Cramér's V frente a `track_genre`.
 
 ---
 
@@ -317,6 +317,8 @@ Se analizan principalmente:
 - `liveness`
 - `popularity`
 
+Los resultados de las 7 variables se resumen además en un único gráfico de barras (% de outliers por variable), para comparar su magnitud relativa de un vistazo.
+
 ### Criterio utilizado
 
 Se considera potencialmente atípico un valor que se encuentre fuera de:
@@ -381,7 +383,7 @@ Antes de cerrar la etapa de comprensión de datos, se documentan tres reformulac
 
 ### Clasificación binaria: detección de "hits"
 
-Se define `is_hit` como `popularity >= 80`. Este umbral corresponde exactamente al **percentil 99** del dataset, por lo que no es un número elegido arbitrariamente. Resulta en una clase positiva minoritaria (1,201 canciones, 1.05%): *accuracy* no es una métrica adecuada para evaluarlo — se recomienda precision, recall, F1 o AUC-PR, junto con `class_weight` o remuestreo.
+Se define `is_hit` como `popularity >= 80`. Este umbral corresponde exactamente al **percentil 99** del dataset, por lo que no es un número elegido arbitrariamente. Resulta en una clase positiva minoritaria (1,201 canciones, 1.05%), visualizada con un gráfico de torta que deja ver de inmediato el desbalance: *accuracy* no es una métrica adecuada para evaluarlo — se recomienda precision, recall, F1 o AUC-PR, junto con `class_weight` o remuestreo.
 
 ### Clasificación multiclase: categorías de popularidad
 
